@@ -1,17 +1,26 @@
 import { useRef, MouseEvent, useState } from "react";
+import useResizeObserver from "../hooks/useResizeObserver";
 
-const HEIGHT = 300;
-const WIDTH = 600;
+const CANVAS_HEIGHT = 300;
+const CANVAS_WIDTH = 600;
 
 export default function DrawCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isMouseDown, setIsMouseDown] = useState(false);
+  const [isTouchDown, setIsTouchDown] = useState(false);
   const [isDrawn, setIsDrawn] = useState(false);
   const [penColor, setPenColor] = useState("#1e90ff");
   const [lastCordinates, setLastCordinates] = useState({
     x: 0,
     y: 0,
   });
+
+ const {width} =  useResizeObserver();
+
+ const getWidth = () => {
+    const rootPadding = 24 * 2;
+    return CANVAS_WIDTH + rootPadding < width ? CANVAS_WIDTH : width - rootPadding ;
+ }
 
   const getContext = () => {
     return canvasRef.current!.getContext("2d") as CanvasRenderingContext2D;
@@ -21,6 +30,15 @@ export default function DrawCanvas() {
     const x = e.pageX - e.currentTarget.offsetLeft;
     const y = e.pageY - e.currentTarget.offsetTop;
     return { x, y };
+  };
+ 
+  const getTouchPos = (e : TouchEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect() as DOMRect;
+    const touch = e.touches[0];
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top,
+    };
   };
 
   const draw = (x: number, y: number) => {
@@ -43,6 +61,16 @@ export default function DrawCanvas() {
     });
   };
 
+  const onTouchStart = (e:TouchEvent) => {
+    setIsTouchDown(true);
+    const {x, y} = getTouchPos(e);
+    setLastCordinates({
+      x,
+      y,
+    });
+  };
+
+
   const onMouseMove = (e: MouseEvent<HTMLCanvasElement>) => {
     if (!isMouseDown) return;
     if (!isDrawn) {
@@ -56,11 +84,26 @@ export default function DrawCanvas() {
     });
   };
 
+  const onTouchMove = (e:TouchEvent) => {
+    if (!isTouchDown) return;
+    if (!isDrawn) {
+      setIsDrawn(true);
+    }
+    const {x , y} = getTouchPos(e);
+    draw(x, y);
+    setLastCordinates({
+      x,
+      y,
+    });
+  };
+
   const onMouseUp = () => {
     setIsMouseDown(false);
+    setIsTouchDown(false);
   };
   const onMouseLeave = () => {
     setIsMouseDown(false);
+    setIsTouchDown(false);
   };
   const clearCanvas = () => {
     const ctx = getContext();
@@ -86,15 +129,18 @@ export default function DrawCanvas() {
   };
   return (
     <>
-      <h1 className="title">Canvas Drawing App</h1>
+      <h1 className="title">Signature App</h1>
       <canvas
         onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart}
         onMouseMove={onMouseMove}
+        onTouchMove={onTouchMove}
         onMouseUp={onMouseUp}
+        onTouchEnd={onMouseUp}
         onMouseLeave={onMouseLeave}
         className="bg-slate"
-        height={HEIGHT}
-        width={WIDTH}
+        height={CANVAS_HEIGHT}
+        width={getWidth()}
         ref={canvasRef}
       />
       <div className="btn-group">
